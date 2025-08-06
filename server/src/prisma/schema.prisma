@@ -1,0 +1,88 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+// schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL") // Supabase DB URL
+  directUrl = env("DIRECT_URL")
+}
+
+model Profile {
+  id        String   @id @default(uuid()) @db.Uuid
+  username  String   @unique
+  createdAt DateTime @default(now())
+
+  // Relations
+  whiteGames         GameSession[] @relation("WhitePlayer")
+  blackGames         GameSession[] @relation("BlackPlayer")
+  wonGames           GameSession[] @relation("Winner")
+  challengesSent     Challenge[]   @relation("Challenger")
+  challengesReceived Challenge[]   @relation("Opponent")
+}
+
+model GameSession {
+  id            String  @id @default(uuid()) @db.Uuid
+  playerWhiteId String? @db.Uuid
+  playerBlackId String? @db.Uuid
+  winnerId      String? @db.Uuid
+
+  isAiGame  Boolean    @default(false)
+  isOffline Boolean    @default(false)
+  status    GameStatus @default(waiting)
+  pgn       String?
+
+  startedAt DateTime  @default(now())
+  endedAt   DateTime?
+
+  // Relations (manual foreign keys to Profile — not auth.users)
+  playerWhite Profile? @relation("WhitePlayer", fields: [playerWhiteId], references: [id])
+  playerBlack Profile? @relation("BlackPlayer", fields: [playerBlackId], references: [id])
+  winner      Profile? @relation("Winner", fields: [winnerId], references: [id])
+
+  moves Move[]
+}
+
+model Move {
+  id           Int      @id @default(autoincrement())
+  gameId       String   @db.Uuid
+  moveNumber   Int
+  notation     String // e.g., "e4", "Nf3"
+  fenAfterMove String? // Optional
+  playedAt     DateTime @default(now())
+
+  // Relation
+  game GameSession @relation(fields: [gameId], references: [id], onDelete: Cascade)
+}
+
+model Challenge {
+  id           String          @id @default(uuid()) @db.Uuid
+  challengerId String          @db.Uuid
+  opponentId   String          @db.Uuid
+  status       ChallengeStatus @default(pending)
+  createdAt    DateTime        @default(now())
+
+  // Relations
+  challenger Profile @relation("Challenger", fields: [challengerId], references: [id])
+  opponent   Profile @relation("Opponent", fields: [opponentId], references: [id])
+}
+
+enum GameStatus {
+  waiting
+  in_progress
+  completed
+}
+
+enum ChallengeStatus {
+  pending
+  accepted
+  declined
+}
