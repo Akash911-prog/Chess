@@ -7,11 +7,11 @@ const router = express.Router()
 
 router.post('/register', register)
 router.post('/login', login)
+router.post('/username', auth, updateUsername)
 router.put('/', auth, updateUser)
 router.get('/', auth, getOneUser)
 router.get('/logout', auth, logout)
 router.get('/oauth', OauthLogin)
-router.post('/username', auth, updateUsername)
 router.delete('/', auth, deleteUser)
 
 export default router
