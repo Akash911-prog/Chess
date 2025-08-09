@@ -36,17 +36,31 @@ export async function lobbySocketHandler(socket, io) {
                     isAiGame: false,
                     isOffline: false,
                     status: "in_progress",
-                    startedAt: new Date(),
                 }
             })
 
             const opponentSocket = getSocketId(challenge.opponentId);
             if (opponentSocket) {
-                io.to(opponentSocket).emit('challengeAccepted', challenge);
+                io.to(opponentSocket).emit('challengeAccepted', (challenge, gameSession));
             }
 
         } catch (error) {
             console.error("Error accepting challenge:", error);
+        }
+    })
+
+    socket.on("rejectChallenge", async (challengeId) => {
+        try {
+            const challenge = await prisma.challenge.delete({
+                where: { id: challengeId }
+            })
+
+            const opponentSocket = getSocketId(challenge.opponentId);
+            if (opponentSocket) {
+                io.to(opponentSocket).emit('challengeRejected', challenge);
+            }
+        } catch (error) {
+            console.error("Error rejecting challenge:", error);
         }
     })
 }
