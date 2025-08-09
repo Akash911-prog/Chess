@@ -1,2 +1,52 @@
+import { PrismaClient } from "@prisma/client";
+import { getSocketId } from "../libs/onlineUsers";
 
-export 
+const prisma = new PrismaClient();
+
+export async function lobbySocketHandler(socket, io) {
+    socket.on('createChallenge', async (opponentId) => {
+        try {
+            const challenge = await prisma.challenge.create({
+                data: {
+                    challengerId: socket.userId,
+                    opponentId
+                }
+            });
+
+            const opponentSocket = getSocketId(opponentId);
+            if (opponentSocket) {
+                io.to(opponentSocket).emit('challengeRecieved', challenge);
+            }
+        } catch (error) {
+            console.error("Error creating challenge:", error);
+        }
+    })
+
+    socket.on('acceptChallenge', async (challengeId) => {
+        try {
+            const challenge = await prisma.challenge.update({
+                where: { id: challengeId },
+                data: { status: "accepted" }
+            });
+
+            const gameSession = prisma.gameSession.create({
+                data: {
+                    playerWhiteId: challenge.challengerId,
+                    playerBlackId: challenge.opponentId,
+                    isAiGame: false,
+                    isOffline: false,
+                    status: "in_progress",
+                    startedAt: new Date(),
+                }
+            })
+
+            const opponentSocket = getSocketId(challenge.opponentId);
+            if (opponentSocket) {
+                io.to(opponentSocket).emit('challengeAccepted', challenge);
+            }
+
+        } catch (error) {
+            console.error("Error accepting challenge:", error);
+        }
+    })
+}
